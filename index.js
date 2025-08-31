@@ -1,158 +1,205 @@
-const BASE = "https://fsa-crud-2aa9294fe819.herokuapp.com/api";
-const COHORT = "2506-FTB-CT-WEB-PT";
-const API_EVENTS = `${BASE_URL}/${COHORT}/events`;
+// === Config ===
+const BASE_URL = "https://fsa-crud-2aa9294fe819.herokuapp.com/api";
+const COHORT = "/2506-FTB-CT-WEB-PT";
+const RESOURCE = "/events";
+const API = `${BASE_URL}${COHORT}${RESOURCE}`;
+console.log(API);
 
 // === State ===
-let parties = [];
-let selectedParty = null;
-let rsvps = [];
-let guests = [];
+let parties = []; // Array<{ id, name, date, description, location, ... }>
+let selectedParty = null; // Full party object or null
+let loading = false; // Show loading states if you want
+let errorMessage = ""; // Capture & show errors
 
-/** Updates state with all parties from the API */
+// === Utilities ===
+const app = document.getElementById("app");
+
+/** Simple date formatter (YYYY-MM-DDTHH:mm:ssZ -> readable) */
+function formatDate(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  // Fallback if invalid
+  if (Number.isNaN(d.getTime())) return String(iso);
+  return d.toLocaleString();
+}
+
+/** Safely set state + rerender */
+function setState(partial) {
+  Object.assign({ parties, selectedParty, loading, errorMessage }, partial);
+  // Update actual refs (Object.assign above uses copies)
+  if ("parties" in partial) parties = partial.parties;
+  if ("selectedParty" in partial) selectedParty = partial.selectedParty;
+  if ("loading" in partial) loading = partial.loading;
+  if ("errorMessage" in partial) errorMessage = partial.errorMessage;
+  render();
+}
+
+// === Data Fetching (with try/catch for explicit error handling) ===
 async function getParties() {
   try {
-    const response = await fetch(API + "/events");
-    const result = await response.json();
-    parties = result.data;
-    render();
-  } catch (e) {
-    console.error(e);
+    setState({ loading: true, errorMessage: "" });
+    const res = await fetch(API);
+    if (!res.ok) throw new Error(`Failed to fetch parties (${res.status})`);
+    const data = await res.json();
+    // FSA CRUD shape: { data: [ ... ] }
+    if (!data || !Array.isArray(data.data)) {
+      throw new Error("Unexpected response format for parties.");
+    }
+    setState({ parties: data.data, loading: false });
+  } catch (err) {
+    setState({
+      loading: false,
+      errorMessage: err.message || "Unknown error loading parties.",
+    });
   }
 }
 
-/** Updates state with a single party from the API */
 async function getParty(id) {
   try {
-    const response = await fetch(API + "/events/" + id);
-    const result = await response.json();
-    selectedParty = result.data;
-    render();
-  } catch (e) {
-    console.error(e);
-  }
-}
-
-/** Updates state with all RSVPs from the API */
-async function getRsvps() {
-  try {
-    const response = await fetch(API + "/rsvps");
-    const result = await response.json();
-    rsvps = result.data;
-    render();
-  } catch (e) {
-    console.error(e);
-  }
-}
-
-/** Updates state with all guests from the API */
-async function getGuests() {
-  try {
-    const response = await fetch(API + "/guests");
-    const result = await response.json();
-    guests = result.data;
-    render();
-  } catch (e) {
-    console.error(e);
+    setState({ loading: true, errorMessage: "" });
+    const res = await fetch(`${API}/${id}`);
+    if (!res.ok) throw new Error(`Failed to fetch party (${res.status})`);
+    const data = await res.json();
+    if (!data || !data.data) {
+      throw new Error("Unexpected response format for party.");
+    }
+    setState({ selectedParty: data.data, loading: false });
+  } catch (err) {
+    setState({
+      loading: false,
+      errorMessage: err.message || "Unknown error loading party.",
+    });
   }
 }
 
 // === Components ===
+function Header() {
+  const $h1 = document.createElement("h1");
+  $h1.textContent = "Party Picker";
+  return $h1;
+}
 
-/** Party name that shows more details about the party when clicked */
+function ErrorBanner() {
+  if (!errorMessage) return document.createDocumentFragment();
+  const $div = document.createElement("div");
+  $div.style.padding = "8px";
+  $div.style.margin = "8px 0";
+  $div.style.border = "1px solid #cc0000";
+  $div.style.background = "#ffecec";
+  $div.style.color = "#990000";
+  $div.textContent = errorMessage;
+  return $div;
+}
+
+function Loading() {
+  if (!loading) return document.createDocumentFragment();
+  const $p = document.createElement("p");
+  $p.textContent = "Loading…";
+  $p.setAttribute("aria-busy", "true");
+  return $p;
+}
+
 function PartyListItem(party) {
   const $li = document.createElement("li");
-
-  if (party.id === selectedParty?.id) {
-    $li.classList.add("selected");
-  }
-
-  $li.innerHTML = `
-    <a href="#selected">${party.name}</a>
-  `;
-  $li.addEventListener("click", () => getParty(party.id));
+  const $btn = document.createElement("button");
+  $btn.type = "button";
+  $btn.textContent = party.name || `(Untitled: ${party.id})`;
+  $btn.style.cursor = "pointer";
+  $btn.style.padding = "6px 10px";
+  $btn.style.margin = "2px 0";
+  $btn.addEventListener("click", () => {
+    getParty(party.id);
+  });
+  $li.appendChild($btn);
   return $li;
 }
 
-/** A list of names of all parties */
 function PartyList() {
+  const $section = document.createElement("section");
+  const $h2 = document.createElement("h2");
+  $h2.textContent = "Parties";
   const $ul = document.createElement("ul");
-  $ul.classList.add("parties");
+  $ul.style.listStyle = "none";
+  $ul.style.padding = "0";
 
-  const $parties = parties.map(PartyListItem);
-  $ul.replaceChildren(...$parties);
-
-  return $ul;
-}
-
-/** Detailed information about the selected party */
-function SelectedParty() {
-  if (!selectedParty) {
-    const $p = document.createElement("p");
-    $p.textContent = "Please select a party to learn more.";
-    return $p;
+  for (const p of parties) {
+    $ul.appendChild(PartyListItem(p));
   }
 
-  const $party = document.createElement("section");
-  $party.innerHTML = `
-    <h3>${selectedParty.name} #${selectedParty.id}</h3>
-    <time datetime="${selectedParty.date}">
-      ${selectedParty.date.slice(0, 10)}
-    </time>
-    <address>${selectedParty.location}</address>
-    <p>${selectedParty.description}</p>
-    <GuestList></GuestList>
-  `;
-  $party.querySelector("GuestList").replaceWith(GuestList());
-
-  return $party;
+  $section.append($h2, $ul);
+  return $section;
 }
 
-/** List of guests attending the selected party */
-function GuestList() {
-  const $ul = document.createElement("ul");
-  const guestsAtParty = guests.filter((guest) =>
-    rsvps.find(
-      (rsvp) => rsvp.guestId === guest.id && rsvp.eventId === selectedParty.id
-    )
+function SelectPrompt() {
+  if (selectedParty) return document.createDocumentFragment();
+  const $p = document.createElement("p");
+  $p.textContent = "Select a party to see the details.";
+  $p.style.fontStyle = "italic";
+  return $p;
+}
+
+function PartyDetails() {
+  const $section = document.createElement("section");
+  const $h2 = document.createElement("h2");
+  $h2.textContent = "Details";
+  $section.appendChild($h2);
+
+  if (!selectedParty) {
+    $section.appendChild(SelectPrompt());
+    return $section;
+  }
+
+  const p = selectedParty;
+  const $dl = document.createElement("dl");
+
+  function row(label, value) {
+    const $frag = document.createDocumentFragment();
+    const $dt = document.createElement("dt");
+    $dt.style.fontWeight = "bold";
+    $dt.textContent = label;
+    const $dd = document.createElement("dd");
+    $dd.style.margin = "0 0 8px 0";
+    $dd.textContent = value ?? "";
+    $frag.append($dt, $dd);
+    return $frag;
+  }
+
+  $dl.append(
+    row("Name", p.name || ""),
+    row("ID", String(p.id)),
+    row("Date", formatDate(p.date)),
+    row("Description", p.description || ""),
+    row("Location", p.location || "")
   );
 
-  // Simple components can also be created anonymously:
-  const $guests = guestsAtParty.map((guest) => {
-    const $guest = document.createElement("li");
-    $guest.textContent = guest.name;
-    return $guest;
-  });
-  $ul.replaceChildren(...$guests);
+  $section.appendChild($dl);
+  return $section;
+}
 
-  return $ul;
+// === Layout (simple 2-column) ===
+function MainLayout() {
+  const $main = document.createElement("main");
+  $main.style.display = "grid";
+  $main.style.gridTemplateColumns = "1fr 2fr";
+  $main.style.gap = "16px";
+  $main.append(PartyList(), PartyDetails());
+  return $main;
 }
 
 // === Render ===
 function render() {
-  const $app = document.querySelector("#app");
-  $app.innerHTML = `
-    <h1>Party Planner</h1>
-    <main>
-      <section>
-        <h2>Upcoming Parties</h2>
-        <PartyList></PartyList>
-      </section>
-      <section id="selected">
-        <h2>Party Details</h2>
-        <SelectedParty></SelectedParty>
-      </section>
-    </main>
-  `;
+  app.innerHTML = ""; // rerender on every state change
 
-  $app.querySelector("PartyList").replaceWith(PartyList());
-  $app.querySelector("SelectedParty").replaceWith(SelectedParty());
+  const $container = document.createElement("div");
+  $container.style.maxWidth = "900px";
+  $container.style.margin = "24px auto";
+  $container.style.fontFamily =
+    "system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+
+  $container.append(Header(), ErrorBanner(), Loading(), MainLayout());
+  app.appendChild($container);
 }
 
-async function init() {
-  await getParties();
-  await getRsvps();
-  await getGuests();
-  render();
-}
-
-init();
+// === Init ===
+render();
+getParties();
