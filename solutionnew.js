@@ -1,14 +1,15 @@
+// === Constants ===
 const BASE = "https://fsa-crud-2aa9294fe819.herokuapp.com/api";
-const COHORT = "2506-FTB-CT-WEB-PT";
-const API_EVENTS = `${BASE_URL}/${COHORT}/events`;
+const COHORT = "/2506-FTB-CT-WEB-PT";
+const API = BASE + COHORT;
 
 // === State ===
 let parties = [];
-let selectedParty = null;
+let selectedParty;
 let rsvps = [];
 let guests = [];
 
-/** Updates state with all parties from the API */
+// === Data Fetching ===
 async function getParties() {
   try {
     const response = await fetch(API + "/events");
@@ -16,11 +17,10 @@ async function getParties() {
     parties = result.data;
     render();
   } catch (e) {
-    console.error(e);
+    console.error("Error loading parties:", e);
   }
 }
 
-/** Updates state with a single party from the API */
 async function getParty(id) {
   try {
     const response = await fetch(API + "/events/" + id);
@@ -28,11 +28,10 @@ async function getParty(id) {
     selectedParty = result.data;
     render();
   } catch (e) {
-    console.error(e);
+    console.error("Error loading party:", e);
   }
 }
 
-/** Updates state with all RSVPs from the API */
 async function getRsvps() {
   try {
     const response = await fetch(API + "/rsvps");
@@ -40,11 +39,10 @@ async function getRsvps() {
     rsvps = result.data;
     render();
   } catch (e) {
-    console.error(e);
+    console.error("Error loading RSVPs:", e);
   }
 }
 
-/** Updates state with all guests from the API */
 async function getGuests() {
   try {
     const response = await fetch(API + "/guests");
@@ -52,13 +50,11 @@ async function getGuests() {
     guests = result.data;
     render();
   } catch (e) {
-    console.error(e);
+    console.error("Error loading guests:", e);
   }
 }
 
 // === Components ===
-
-/** Party name that shows more details about the party when clicked */
 function PartyListItem(party) {
   const $li = document.createElement("li");
 
@@ -66,25 +62,22 @@ function PartyListItem(party) {
     $li.classList.add("selected");
   }
 
-  $li.innerHTML = `
-    <a href="#selected">${party.name}</a>
-  `;
+  $li.innerHTML = `<a href="#selected">${party.name}</a>`;
   $li.addEventListener("click", () => getParty(party.id));
+
   return $li;
 }
 
-/** A list of names of all parties */
 function PartyList() {
   const $ul = document.createElement("ul");
   $ul.classList.add("parties");
 
-  const $parties = parties.map(PartyListItem);
-  $ul.replaceChildren(...$parties);
+  const $items = parties.map(PartyListItem);
+  $ul.replaceChildren(...$items);
 
   return $ul;
 }
 
-/** Detailed information about the selected party */
 function SelectedParty() {
   if (!selectedParty) {
     const $p = document.createElement("p");
@@ -107,23 +100,22 @@ function SelectedParty() {
   return $party;
 }
 
-/** List of guests attending the selected party */
 function GuestList() {
   const $ul = document.createElement("ul");
+
   const guestsAtParty = guests.filter((guest) =>
     rsvps.find(
       (rsvp) => rsvp.guestId === guest.id && rsvp.eventId === selectedParty.id
     )
   );
 
-  // Simple components can also be created anonymously:
-  const $guests = guestsAtParty.map((guest) => {
-    const $guest = document.createElement("li");
-    $guest.textContent = guest.name;
-    return $guest;
+  const $items = guestsAtParty.map((guest) => {
+    const $li = document.createElement("li");
+    $li.textContent = guest.name;
+    return $li;
   });
-  $ul.replaceChildren(...$guests);
 
+  $ul.replaceChildren(...$items);
   return $ul;
 }
 
@@ -148,10 +140,9 @@ function render() {
   $app.querySelector("SelectedParty").replaceWith(SelectedParty());
 }
 
+// === Init ===
 async function init() {
-  await getParties();
-  await getRsvps();
-  await getGuests();
+  await Promise.all([getParties(), getRsvps(), getGuests()]);
   render();
 }
 

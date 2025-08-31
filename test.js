@@ -1,9 +1,9 @@
 // === Config ===
 const BASE_URL = "https://fsa-crud-2aa9294fe819.herokuapp.com/api";
-const COHORT = "2506-FTB-CT-WEB-PT";
-// The resource for this assignment is often "events" (aka parties) in the FSA CRUD API.
+const COHORT = "/2506-FTB-CT-WEB-PT";
 const RESOURCE = "/events";
-const API = `${BASE_URL}/${COHORT}${RESOURCE}`;
+const API = `${BASE_URL}${COHORT}${RESOURCE}`;
+console.log(API);
 
 // === State ===
 let parties = []; // Array<{ id, name, date, description, location, ... }>
