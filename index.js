@@ -1,6 +1,6 @@
 // === Config ===
 const BASE_URL = "https://fsa-crud-2aa9294fe819.herokuapp.com/api";
-const COHORT = "/2506-FTB-CT-WEB-PT";
+const COHORT = "/2506-CT-WEB-PT";
 const RESOURCE = "/events";
 const API = `${BASE_URL}${COHORT}${RESOURCE}`;
 console.log(API);
@@ -14,11 +14,11 @@ let errorMessage = ""; // Capture & show errors
 // === Utilities ===
 const app = document.getElementById("app");
 
-/** Simple date formatter (YYYY-MM-DDTHH:mm:ssZ -> readable) */
+// Date formatter //
 function formatDate(iso) {
   if (!iso) return "";
   const d = new Date(iso);
-  // Fallback if invalid
+  // date -  if invalid //
   if (Number.isNaN(d.getTime())) return String(iso);
   return d.toLocaleString();
 }
@@ -72,10 +72,10 @@ async function getParty(id) {
   }
 }
 
-// === Components ===
+// === html Components === //
 function Header() {
   const $h1 = document.createElement("h1");
-  $h1.textContent = "Party Picker";
+  $h1.textContent = "Party Planner";
   return $h1;
 }
 
@@ -117,7 +117,7 @@ function PartyListItem(party) {
 function PartyList() {
   const $section = document.createElement("section");
   const $h2 = document.createElement("h2");
-  $h2.textContent = "Parties";
+  $h2.textContent = "Upcoming Parties";
   const $ul = document.createElement("ul");
   $ul.style.listStyle = "none";
   $ul.style.padding = "0";
